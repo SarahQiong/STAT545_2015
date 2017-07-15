@@ -1,0 +1,128 @@
+---
+title: "Assignment 2"  
+author: "Qiong Zhang"  
+date: "23 September, 2015"  
+output:  
+  html_document: 
+    keep_md: yes
+    theme: spacelab
+    toc: yes
+---
+
+# Data Import
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
+
+I downloaded the data file into Homework2 folder. In order to read the data in a more convenient way, set the work path to Homework2 folder
+
+```{r}
+#setwd("Assignment/Homework2")
+```
+
+First, load the Gapminder data with both functions without specifying args other than file:
+
+### Using *read.delim*
+```{r}
+gap1 <- read.delim("gapminderDataFiveYear.txt")
+str(gap1)
+```
+Without specifying args other than file using *read.delim* read the txt file seems okay. It creates a data.frame with 1704 obs. of 6 variables. We can know there is 1704 obs. by viewing document source of the data web page.
+
+### Using *read.table* 
+#### Wrong way
+
+Without specifying args other than file using *read.table* can't read the data and doesn't work, the output says:
+
+```{r,error=TRUE} 
+gap2 <- read.table("gapminderDataFiveYear.txt")
+gap1[146,]
+```
+__Summary__: 
+
+When you look up the args of these two functions, you will find sep in read.table is "", and sep in read.delim is "\t", look at the 146th observation of the dataset, we can find out since there are some spaces in some countries names, thus it failes when read this data using read.table without specifying any argus.
+
+#### A proper way
+```{r}
+gap<- read.table("gapminderDataFiveYear.txt",header = TRUE, sep = "\t",quote="")
+```
+__What we've changed:__
+
+* As I have mentioned, there are some spaces in some countries names, set the sep value
+* The variable names need to be seperate from the data, set header=T
+* There are some countries have quoting probelm, set this one.
+
+# Smell Test the Data
+
+* Is it a data.frame, a matrix, a vector, a list?
+```{r}
+class(gap)
+```
+
+* How many variables? How many rows/observations?
+```{r}
+dim(gap)
+nrow(gap);ncol(gap)
+```
+
+* What flavor is each the variable?
+```{r}
+str(gap)
+```
+
+__Summary__: It is a data.frame. 6 variables with pop, lifeExp and gdpPercap numerical, country and continent factor and year int.
+
+# Explore individual variables
+* How many observations each country have:
+
+```{r}
+table(gap$country)
+```
+Function table shows us we have 142 countries each have 12 observations.
+
+* Data Summary
+```{r}
+summary(gap$gdpPercap)
+summary(gap$lifeExp)
+```
+The gdpPercap for these countries throughout the 12 years are between [241.2,113500], lifeExp are between[23.6,82.6]. There's a very big gdpPercap data. 
+
+* This is a bar plot of gdpPercap for each country each year, it can show you the increase of each coutry's gapPercap as well as the final gdpPercap.
+
+```{r gdp_barplot, fig.width=15, fig.height=38,warning=FALSE}
+library(ggplot2)
+#ggplot(gap, aes(x=country, y=log10(gdpPercap)))+ geom_bar(stat="identity") +facet_wrap(~ year)+ coord_flip()
+ggplot(gap, aes(x=country, y=log10(gdpPercap),fill=year))+ geom_bar(stat="identity") + coord_flip()
+
+```
+
+* This is a scatter plot of lifeEXp_log10(gdpPercap), it really can show something interesting. I draw a scatterplot for each year and colored the scatter plot according to their continent, We can see clearly from the picture it seems has some cluster depends on the continent. Overall, countries in africa have lower lifeExp& gdpPercap, countries in Europe have higher lifeExp& gdpPercap. With time past, the average of lifeExp increases since the plot shifts to the right.
+
+```{r lifeExp_gdpPercap_scatterplot_by_year_continent}
+ggplot(gap, aes(x = lifeExp, y = gdpPercap)) +
+  geom_point(aes(color=continent))+ facet_wrap(~ year)+scale_y_log10() 
+  
+```
+
+* I've investigated the relationship between lifeExp and gdpPercap each year, let's see how it changes during these years in each continent. We can clearly see from this plot, generally speaking, every continent's lifeExp & gdpPercap increase as time went by.
+
+```{r lifeExp_gdpPercap_scatterplot_by_continent_year}
+ggplot(gap, aes(x = lifeExp, y = gdpPercap)) +
+  geom_point(aes(color=year))+ facet_wrap(~ continent)+scale_y_log10() 
+  
+```
+
+
+* I randomly chose 1 country out of 142 and see how there gdpPercap changes. You can use this method to investigate the changes of each countries' gdpPercap change.
+```{r random_country_gdpPercap_lifeExp_change}
+set.seed(43256)
+a <- sample(1:142,1)
+randomdata <- gap[((a-1)*12+1):(a*12),]
+ggplot(randomdata, aes(x=year, y=gdpPercap))+ geom_line() 
+```
+
+###Something useful
+When I draw the bar plot grouped by countries, since there are 142 countries you can't clearly see the label of the courties. At first, I intended to set the size of the picture in ggplot, but I failed. Finally there's a way: we can set the width in the chunk like this:
+```
+{r fig.width=7, fig.height=4, echo=FALSE}
+```

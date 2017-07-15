@@ -1,0 +1,184 @@
+---
+title: "Assignment3"
+author: "Qiong Zhang"
+date: "2015年10月3日"
+output: 
+  html_document: 
+    keep_md: yes
+    theme: spacelab
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Preparation
+```{r}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+#setwd("Assignment/Homework3")
+gapminder<- read.table("gapminderDataFiveYear.txt",header = TRUE, sep = "\t",quote="")
+library(reshape2)
+```
+
+#Task menu
+
+* __Get the maximum and minimum of GDP per capita for all continents.__
+```{r results='asis'}
+
+knitr::kable(gapminder %>% group_by(continent) %>%  summarize(min_of_GDP_per_capita = min(gdpPercap), max_of_GDP_per_capita = max(gdpPercap)),format="markdown")
+```
+
+```{r min_max}
+ggplot(gapminder, aes(x = continent, y = gdpPercap)) +
+  scale_y_log10() + stat_summary(fun.y = min, aes(colour="Min"), geom = "point", size = 3) +
+  stat_summary(fun.y = max, aes(colour="Max"), geom = "point", size = 3)+ scale_colour_manual(name="",values=c("green","red"),breaks=c("Max", "Min"), labels=c("Max_GDP", "Min_GDP"))+stat_summary(aes(label=round(..y..,2)), fun.y=min,geom="text", size=3, hjust = -0.3)+stat_summary(aes(label=round(..y..,1)), fun.y=max,geom="text", size=3, hjust = -0.3)+labs(title="Min and Max GDP per capita by continent")
+```
+
+* summary:
+
+     + `group_by()` adds extra structure to dataset – grouping information – which lays the groundwork for computations within the groups. Since I want to get the min and max of GDP per capita within each continent, grouping information is needed.
+
+     + `summarize()` takes a dataset with n observations, computes requested summaries, and returns a dataset with 1 observation. I have  a lot of observations of GDP per capita, and I want to get the min and max, I need a function returns only 1 observation, so I use `summarize()`, what's more I can use function `min` and `max` to help me get the min and max value of GDP per capita.
+     
+     + The results show that a country in Asia has the highest GDP per capita, while countries in Africa have the lowest which as we expected.
+     
+     + Adding a legend in this graph is hard, please see the first one in something useful part if you're interested in it!
+
+* __Look at the spread of GDP per capita within the continents.__
+```{r results='asis'}
+knitr::kable(gapminder %>% group_by(continent) %>% summarise(IQR = IQR(gdpPercap), sd = sd(gdpPercap), min = min(gdpPercap), median = median(gdpPercap), max = max(gdpPercap)),format = "markdown")
+```
+```{r spread}
+ggplot(gapminder, aes(x = continent, y = gdpPercap,color=continent)) +geom_boxplot()+stat_summary(fun.y = min, colour = "red", geom = "point", size = 3)+stat_summary(fun.y = max, colour = "green", geom = "point", size = 3)+scale_y_log10()+labs(title="Side-by-side boxplot for GDP per capita")
+```
+
+* summary:
+
+     + Just as the first one, we use `group_by()` and `summarize()` here, in `summarize()`, we use IQR and SD which are used to measure the spread of data.
+     
+     + The results show that gdpPercap in Asia have large variance, while gdpPercap in Africa have the lowest variance. What's more, Within each continent, there's a large difference between IQR and SD, so the distribution of GDP per capita might not be symmetric.
+     
+     + I add min and max onto the side-by-side boxplot.
+     
+* __Compute a trimmed mean of life expectancy for different years. Or a weighted mean, weighting by population. Just try something other than the plain vanilla mean.__
+
+```{r results='asis'}
+knitr::kable(gapminder %>% select(year, lifeExp, pop) %>% group_by(year) %>% summarise(weighted_avg=weighted.mean(lifeExp,pop)),format="markdown")
+```
+
+```{r weighted_mean}
+gapminder %>% select(year, lifeExp, pop) %>% group_by(year) %>% summarise(weighted_avg=weighted.mean(lifeExp,pop)) %>% ggplot(aes(x=year,y=weighted_avg))+geom_line()+geom_point()+labs(title = "Lineplot for trimmed mean of life Expectancy for different years")
+```
+
+* summary:
+
+     + I use `weighted.mean()` which offers another function that we use in `summarise()` in `dplyr`
+     
+     + The result of the plot is as we expected, the trimmed mean increases as time changing over.
+     
+This gives me a thought of calculating trimmed mean within each continent for different years. Also weigted by population.
+
+
+
+```{r results='asis'}
+knitr::kable(gapminder %>% select(year, continent, lifeExp, pop) %>% group_by(year,continent) %>% summarise(weighted_avg=weighted.mean(lifeExp,pop)),format="markdown")
+```
+
+After learning the package `tidyr`, I can make the table more beautiful.
+```{r results='asis'}
+library(tidyr)
+a <- gapminder %>% select(year, continent, lifeExp, pop) %>% group_by(year,continent) %>% summarise(weighted_avg=weighted.mean(lifeExp,pop))
+knitr::kable(spread(a, year, weighted_avg),format="markdown")
+
+```
+
+
+
+
+
+```{r weighted_mean_continent}
+gapminder %>% select(year, continent, lifeExp, pop) %>% group_by(year,continent) %>% summarise(weighted_avg=weighted.mean(lifeExp,pop)) %>% ggplot(aes(x=year,y=weighted_avg,color=continent))+geom_point()+geom_line()+labs(title = "Trimmed mean of life Expectancy for different years within each continent")
+```
+
+__Something Interesting__: We can see from the two plots above, it seems like the trimmed mean plot for asia looks like the trimmed mean plot for the whole world, maybe because asia has a large number of population?
+
+* __How is life expectancy changing over time on different continents?__
+
+```{r lifeExp_continent}
+gapminder %>% arrange(continent,year) %>% select(continent, year, lifeExp) %>% glimpse()
+
+gapminder %>% ggplot(aes(x=factor(year),y=lifeExp))+geom_violin(colour="pink")+facet_wrap(~continent)
+
+```
+
+* summary:
+
+     + The graph shows that there's outlier.
+     
+     + The result of the barplot is as we expected, the trimmed mean increases as time changing over.
+     
+     + The plot looks not very nice since there's too many countries in each continent and the number of countries are not equal, thus I draw another one using mean of life expectancy within each continent to make the measure more uniform.
+
+```{r mean_lifeExp_continent}
+gapminder %>% group_by(continent,year) %>% summarise(mean=mean(lifeExp)) 
+gapminder %>% group_by(continent,year) %>% summarise(mean=mean(lifeExp)) %>% ggplot(aes(x=year,y=mean,color=continent))+geom_point()+geom_line()
+
+```
+
+* __Report the absolute and/or relative abundance of countries with low life expectancy over time by continent: Compute some measure of worldwide life expectancy – you decide – a mean or median or some other quantile or perhaps your current age. The determine how many countries on each continent have a life expectancy less than this benchmark, for each year.__
+
+```{r results='asis'}
+knitr::kable(gapminder %>% mutate(measure=rep(mean(lifeExp),length(lifeExp))) %>% group_by(continent,year) %>% filter(lifeExp<measure) %>% summarise(n_distinct(country)),format = "markdown")
+```
+
+```{r worldwide_measure}
+gapminder %>% mutate(measure=rep(mean(lifeExp),length(lifeExp))) %>% group_by(continent,year) %>% filter(lifeExp<measure) %>% summarise(n=n_distinct(country)) %>%  arrange(n)%>% ggplot(aes(x=year,y=n,fill=continent))+geom_bar(stat="identity",position="dodge")
+```
+
+* summary:
+
+     + First, I add another variable which is the measure of worldwide life expectancy. Then, as we need the number of distinct countries on each continent which have a life expectancy less than the worldwide measure, we need to group by continent and year.
+     
+     + I set the mean of all the observations of lifeExp as a worldwide measure.
+     
+     + The graph show us: First, there's no country's life expectancy in oceania less than worldwide measure, which means the countries in the continent have a high level of life expectancy. Second, the number of countries we intened to compute in each countinent except for Africa decreses as time changing over, which means life expectancy increases all the time in all countries as we expected. The number of countries in Africa varies as time changing, the phenomenon need us pay attention and investige why would this happen.
+     
+     + Africa has the largest number of countries, asia after and then Americas and Europe. Just as we expected, lifeExp is related to the development or condition of economy. Generally speaking, the better economy, the longer life expectancy.
+
+* __Find countries with interesting stories. Open-ended and, therefore, hard. Promising but unsuccessful attempts are encouraged. This will generate interesting questions to follow up on in class.__
+
+I'm from China and I want to learn more about China's population and GDP,
+```{r china}
+only_china <- gapminder %>% filter(country=="China")
+ggplot(only_china,aes(x=gdpPercap,y=lifeExp))+geom_point()+geom_line()+scale_x_log10()+scale_y_log10()
+ggplot(only_china,aes(x=year,y=lifeExp))+geom_point()+geom_line()
+ggplot(only_china,aes(x=year,y=gdpPercap))+geom_point()+geom_line()
+```
+
+* summary:
+
+      + As we can see, there's a decrease in China's population around 1962. It's so funny to read something from the graph. That's because of the Great Chinese Famine of 1960 which killed a lot of people.
+      
+      + GDP per capita in China is higher than 1000 after year 1982 and increases in a high speed owing to the reform and opening-up policy in China since 1979. 
+      
+      + Since China's economy develops quite fast since 1982, I want to make a horizontal comparison with some other countries.
+      
+      
+```{r horizontal_comparison}
+gapminder %>% filter(year>1979,country %in% c("China","America","Canada","Japan","United Kingdom","Australia")) %>% select(country,year,gdpPercap) %>% arrange(year)
+
+gapminder %>% filter(year>1979,country %in% c("China","America","Canada","Japan","United Kingdom","Australia")) %>% select(country,year,gdpPercap) %>% arrange(year) %>% ggplot(aes(year,gdpPercap,fill=country))+geom_bar(stat="identity",position="dodge")
+
+```
+
+The graph is so amazing, it seems like China's GDP grows very fast, when compared with other large countries, still too low.
+
+#Something useful and thoughts
+* Here's a useful link I used for the first graph on [How to add legend manually in ggplot?](http://stackoverflow.com/questions/10349206/add-legend-to-ggplot2-line-plot)
+
+* Another [Creating elegant HTML presentations that feature R code (using slidify )](http://zevross.com/blog/2014/11/19/creating-elegant-html-presentations-that-feature-r-code/)
+
+* The tables look ugly and may learn more about it.

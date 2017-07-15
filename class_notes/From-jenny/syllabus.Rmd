@@ -1,0 +1,65 @@
+---
+title: "Syllabus"
+output:
+  html_document:
+    includes:
+      after_body: include/nothing.html
+---
+
+```{r include = FALSE}
+library(dplyr)
+library(stringr)
+library(readr)
+```
+
+```{r include = FALSE}
+rawdat <-
+  read_csv(file.path("course-admin", "class-meetings", "class-meetings.csv"))
+cdat <- rawdat %>%
+  mutate(ugly_date = ISOdate(2015, match(month, tolower(month.name)), day),
+         date = sprintf("%s-%02d %s",
+                        tolower(months(ugly_date, abbreviate = TRUE)),
+                        day, dow),
+         notes = ifelse(grepl("^cm", cm) & raw_notes != "",
+                        sprintf("%s: %s", cm, raw_notes), raw_notes))
+#cdat %>% View
+
+## link to the class page of any class meetings where such exists
+## AND I want to link
+## year 1: we just filtered for presence of .html file
+## year 2: yes merge those but also filter on link_it for gradual reveal
+cmdat <- data_frame(html = list.files(pattern = '^cm.*html$'))
+cmdat <- cmdat %>% mutate(cm = str_extract(html, "cm[0-9]+"))
+cdat <- cdat %>% full_join(cmdat)
+
+## TO DO: rescue placeholders for "Practical graphing tips and tidy data" and
+## "Tidy data"
+
+#cdat <- cdat %>%
+#  mutate(html_exists = !is.na(html)) %>% 
+cdat$notes[cdat$link_it] <-
+  str_replace(cdat$notes[cdat$link_it],
+              "(cm[0-9]{3})", '<a href="LINK">\\1</a>')
+cdat <- cdat %>% mutate(notes = str_replace(notes, "LINK", html))
+dat <- cdat %>% split(cdat$course)
+dat <- lapply(dat, 'rownames<-', NULL)
+```
+
+<!-- unholy hack to make following two tables less wide and the same wide -->
+<style type="text/css">
+table {
+   max-width: 50%;
+}
+</style>
+
+#### STAT 545A
+
+```{r results = 'asis', echo = FALSE}
+knitr::kable(dat[["STAT545A"]] %>% select(date, notes))
+```
+
+#### STAT 547M
+
+```{r results = 'asis', echo = FALSE}
+knitr::kable(dat[["STAT547M"]] %>% select(date, notes))
+```
